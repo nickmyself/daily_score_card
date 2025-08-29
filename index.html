@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Score Card</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: white;
+            border: 1px solid #ddd;
+            padding: 30px;
+            border-radius: 5px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        
+        h3 {
+            color: #333;
+            font-size: 20px;
+            margin: 30px 0 20px 0;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .upload-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            text-align: center;
+            background: #fafafa;
+        }
+        
+        .file-input-group {
+            margin: 15px 0;
+        }
+        
+        .file-input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .file-input {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            width: 100%;
+            max-width: 300px;
+        }
+        
+        .analyze-btn {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 25px;
+            border: none;
+            border-radius: 3px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        
+        .analyze-btn:hover {
+            background-color: #0056b3;
+        }
+        
+        .analyze-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .results {
+            margin-top: 30px;
+            display: none;
+        }
+        
+        .stats-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+        }
+        
+        .stats-dashboard {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .stat-card {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            padding: 15px;
+            text-align: center;
+        }
+        
+        .stat-card.large {
+            grid-column: span 2;
+        }
+        
+        
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+            text-align: center;
+        }
+        
+        .big-number {
+            font-size: 32px;
+            color: #333;
+            display: block;
+            line-height: 1;
+        }
+        
+        .positive {
+            color: #28a745;
+        }
+        
+        .negative {
+            color: #dc3545;
+        }
+        
+        .neutral {
+            color: #666;
+        }
+        
+        .error {
+            color: #dc3545;
+            background-color: #f8d7da;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        
+        .ticker-summary {
+            margin-top: 20px;
+        }
+        
+        .ticker-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .ticker-table td {
+            padding: 8px 15px;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
+            vertical-align: top;
+        }
+        
+        .ticker-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .ticker-name {
+            font-weight: bold;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Daily Trading Score Card</h1>
+        
+        <div class="upload-section">
+            <h3>Upload Trading CSV Files</h3>
+            <div class="file-input-group">
+                <label for="csvFile1">Account 1 CSV File:</label>
+                <input type="file" id="csvFile1" class="file-input" accept=".csv" />
+            </div>
+            <div class="file-input-group">
+                <label for="csvFile2">Account 2 CSV File:</label>
+                <input type="file" id="csvFile2" class="file-input" accept=".csv" />
+            </div>
+            <div class="file-input-group">
+                <label for="rMultiple">R Multiple (Risk per trade):</label>
+                <input type="number" id="rMultiple" class="file-input" placeholder="Enter R value (e.g. 100)" step="0.01" />
+            </div>
+            <button class="analyze-btn" onclick="analyzeData()">Analyze Trading Data</button>
+            <div id="error-message"></div>
+        </div>
+        
+        <div id="results" class="results">
+            <h3>Trading Statistics (Dollar)</h3>
+            <div class="stats-grid">
+                <div class="stat-card large">
+                    <div class="stat-label">Total PnL</div>
+                    <div class="stat-value big-number" id="totalPnL">-</div>
+                </div>
+                <div class="stat-card medium">
+                    <div class="stat-label">Winners</div>
+                    <div class="stat-value positive" id="winners">-</div>
+                </div>
+                <div class="stat-card medium">
+                    <div class="stat-label">Losers</div>
+                    <div class="stat-value negative" id="losers">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Average Win</div>
+                    <div class="stat-value positive" id="avgWin">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Average Loss</div>
+                    <div class="stat-value negative" id="avgLoss">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Win Rate</div>
+                    <div class="stat-value" id="winRate">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Average RR</div>
+                    <div class="stat-value" id="avgRR">-</div>
+                </div>
+            </div>
+            
+            <h3>Trading Statistics (R Multiple)</h3>
+            <div class="stats-grid">
+                <div class="stat-card large">
+                    <div class="stat-label">Total PnL</div>
+                    <div class="stat-value big-number" id="totalPnLR">-</div>
+                </div>
+                <div class="stat-card medium">
+                    <div class="stat-label">Winners</div>
+                    <div class="stat-value positive" id="winnersR">-</div>
+                </div>
+                <div class="stat-card medium">
+                    <div class="stat-label">Losers</div>
+                    <div class="stat-value negative" id="losersR">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Average Win</div>
+                    <div class="stat-value positive" id="avgWinR">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Average Loss</div>
+                    <div class="stat-value negative" id="avgLossR">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Win Rate</div>
+                    <div class="stat-value" id="winRateR">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Average RR</div>
+                    <div class="stat-value" id="avgRRR">-</div>
+                </div>
+            </div>
+            
+            <h3>Ticker Summary</h3>
+            <div id="tickerSummary" class="ticker-summary"></div>
+        </div>
+    </div>
+
+    <script>
+        let tradingData = [];
+
+        function parseCSV(csvText) {
+            const lines = csvText.trim().split('\n');
+            const headers = lines[0].split(',');
+            const data = [];
+            
+            for (let i = 1; i < lines.length; i++) {
+                if (lines[i].trim()) {
+                    const values = lines[i].split(',');
+                    const row = {};
+                    headers.forEach((header, index) => {
+                        row[header.trim()] = values[index] ? values[index].trim() : '';
+                    });
+                    data.push(row);
+                }
+            }
+            return data;
+        }
+
+        function readFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(e);
+                reader.readAsText(file);
+            });
+        }
+
+        async function analyzeData() {
+            const file1 = document.getElementById('csvFile1').files[0];
+            const file2 = document.getElementById('csvFile2').files[0];
+            const errorDiv = document.getElementById('error-message');
+            
+            errorDiv.innerHTML = '';
+            
+            if (!file1 && !file2) {
+                errorDiv.innerHTML = '<div class="error">Please select at least one CSV file.</div>';
+                return;
+            }
+            
+            try {
+                tradingData = [];
+                
+                if (file1) {
+                    const csvText1 = await readFile(file1);
+                    const data1 = parseCSV(csvText1);
+                    tradingData = tradingData.concat(data1);
+                }
+                
+                if (file2) {
+                    const csvText2 = await readFile(file2);
+                    const data2 = parseCSV(csvText2);
+                    tradingData = tradingData.concat(data2);
+                }
+                
+                calculateStatistics();
+                document.getElementById('results').style.display = 'block';
+                
+            } catch (error) {
+                errorDiv.innerHTML = '<div class="error">Error reading files: ' + error.message + '</div>';
+            }
+        }
+
+        function aggregateTrades(rawTrades) {
+            // Sort trades by time chronologically
+            const sortedTrades = rawTrades.slice().sort((a, b) => {
+                const timeA = a.Time;
+                const timeB = b.Time;
+                return timeA.localeCompare(timeB);
+            });
+            
+            console.log('Sorted trades:', sortedTrades.length);
+            
+            // Group trades by symbol first, then track position changes
+            const symbolTrades = {};
+            sortedTrades.forEach(trade => {
+                const symbol = trade.Symbol;
+                if (!symbolTrades[symbol]) {
+                    symbolTrades[symbol] = [];
+                }
+                symbolTrades[symbol].push(trade);
+            });
+            
+            const completedTrades = [];
+            
+            // Process each symbol separately
+            Object.keys(symbolTrades).forEach(symbol => {
+                const trades = symbolTrades[symbol];
+                let position = 0;
+                let currentTradeGroup = [];
+                let currentPnL = 0;
+                
+                console.log(`\nProcessing ${symbol}:`);
+                
+                trades.forEach(trade => {
+                    const side = trade.Side;
+                    const qty = parseInt(trade.Qty);
+                    const pnl = parseFloat(trade['P / L'] || 0);
+                    const ecnFee = parseFloat(trade.ECNFee || 0);
+                    const netPnL = pnl - ecnFee;
+                    
+                    // Add to current trade group
+                    currentTradeGroup.push(trade);
+                    currentPnL += netPnL;
+                    
+                    // Update position
+                    if (side === 'B') {
+                        position += qty; // Buy increases position (or covers short)
+                    } else if (side === 'SS') {
+                        position -= qty; // Short sell decreases position (goes negative)
+                    }
+                    
+                    console.log(`${trade.Time} ${side} ${qty} - Position: ${position}, P/L: ${pnl}, ECN: ${ecnFee}, Net: ${netPnL}, Total P/L: ${currentPnL}`);
+                    
+                    // If position is back to 0, we have a completed trade
+                    if (position === 0 && currentTradeGroup.length > 0) {
+                        completedTrades.push({
+                            symbol: symbol,
+                            totalPnL: currentPnL,
+                            tradeCount: currentTradeGroup.length,
+                            trades: currentTradeGroup.slice(),
+                            startTime: currentTradeGroup[0].Time,
+                            endTime: currentTradeGroup[currentTradeGroup.length - 1].Time
+                        });
+                        
+                        console.log(`✅ Completed trade: ${symbol} P/L: ${currentPnL}`);
+                        
+                        // Reset for next trade
+                        currentTradeGroup = [];
+                        currentPnL = 0;
+                    }
+                });
+                
+                // Handle remaining open position (if any)
+                if (currentTradeGroup.length > 0) {
+                    console.log(`⚠️ Open position remaining for ${symbol}: ${position} shares, P/L: ${currentPnL}`);
+                    // You might want to include this as an incomplete trade or ignore it
+                }
+            });
+            
+            console.log(`\nTotal completed trades found: ${completedTrades.length}`);
+            return completedTrades;
+        }
+
+        function calculateStatistics() {
+            console.log('Trading data:', tradingData);
+            
+            // First aggregate trades by symbol
+            const aggregatedTrades = aggregateTrades(tradingData);
+            console.log('Aggregated trades:', aggregatedTrades);
+            
+            // Filter out trades with zero total P/L
+            const completedTrades = aggregatedTrades.filter(trade => trade.totalPnL !== 0);
+            console.log('Completed trades (non-zero P/L):', completedTrades.length);
+            
+            const winners = completedTrades.filter(trade => trade.totalPnL > 0);
+            const losers = completedTrades.filter(trade => trade.totalPnL < 0);
+            
+            const winCount = winners.length;
+            const lossCount = losers.length;
+            const totalTrades = winCount + lossCount;
+            
+            const totalWins = winners.reduce((sum, trade) => sum + trade.totalPnL, 0);
+            const totalLosses = losers.reduce((sum, trade) => sum + trade.totalPnL, 0);
+            
+            const totalPnL = totalWins + totalLosses;
+            const avgWin = winCount > 0 ? totalWins / winCount : 0;
+            const avgLoss = lossCount > 0 ? totalLosses / lossCount : 0;
+            const winRate = totalTrades > 0 ? (winCount / totalTrades) * 100 : 0;
+            const avgRR = (winCount > 0 && lossCount > 0) ? Math.abs(avgWin / avgLoss) : 0;
+            
+            // Display dollar statistics
+            document.getElementById('winners').textContent = winCount;
+            document.getElementById('losers').textContent = lossCount;
+            document.getElementById('avgWin').textContent = '$' + avgWin.toFixed(2);
+            document.getElementById('avgLoss').textContent = '$' + avgLoss.toFixed(2);
+            document.getElementById('winRate').textContent = winRate.toFixed(1) + '%';
+            document.getElementById('avgRR').textContent = avgRR.toFixed(2);
+            document.getElementById('totalPnL').textContent = '$' + totalPnL.toFixed(2);
+            
+            // Calculate and display R multiple statistics
+            const rMultiple = parseFloat(document.getElementById('rMultiple').value) || 1;
+            
+            const totalPnLR = rMultiple > 0 ? totalPnL / rMultiple : 0;
+            const avgWinR = rMultiple > 0 ? avgWin / rMultiple : 0;
+            const avgLossR = rMultiple > 0 ? avgLoss / rMultiple : 0;
+            const avgRRR = (winCount > 0 && lossCount > 0) ? Math.abs(avgWinR / avgLossR) : 0;
+            
+            document.getElementById('winnersR').textContent = winCount;
+            document.getElementById('losersR').textContent = lossCount;
+            document.getElementById('avgWinR').textContent = avgWinR.toFixed(2) + 'R';
+            document.getElementById('avgLossR').textContent = avgLossR.toFixed(2) + 'R';
+            document.getElementById('winRateR').textContent = winRate.toFixed(1) + '%';
+            document.getElementById('avgRRR').textContent = avgRRR.toFixed(2);
+            document.getElementById('totalPnLR').textContent = totalPnLR.toFixed(2) + 'R';
+            
+            // Update colors based on values
+            document.getElementById('winRate').className = 'stat-value ' + (winRate >= 50 ? 'positive' : 'negative');
+            document.getElementById('avgRR').className = 'stat-value ' + (avgRR >= 1 ? 'positive' : 'negative');
+            document.getElementById('totalPnL').className = 'stat-value ' + (totalPnL >= 0 ? 'positive' : 'negative');
+            document.getElementById('winRateR').className = 'stat-value ' + (winRate >= 50 ? 'positive' : 'negative');
+            document.getElementById('avgRRR').className = 'stat-value ' + (avgRRR >= 1 ? 'positive' : 'negative');
+            document.getElementById('totalPnLR').className = 'stat-value ' + (totalPnLR >= 0 ? 'positive' : 'negative');
+            
+            // Generate ticker summaries
+            generateTickerSummaries(completedTrades);
+        }
+        
+        function generateTickerSummaries(completedTrades) {
+            const rMultiple = parseFloat(document.getElementById('rMultiple').value) || 1;
+            const tickerSummaryDiv = document.getElementById('tickerSummary');
+            
+            // Group trades by symbol
+            const tradesBySymbol = {};
+            completedTrades.forEach(trade => {
+                if (!tradesBySymbol[trade.symbol]) {
+                    tradesBySymbol[trade.symbol] = [];
+                }
+                tradesBySymbol[trade.symbol].push(trade);
+            });
+            
+            let summaryHTML = '<table class="ticker-table">';
+            
+            Object.keys(tradesBySymbol).forEach(symbol => {
+                const trades = tradesBySymbol[symbol];
+                
+                let dollarResults = [];
+                let rResults = [];
+                
+                trades.forEach(trade => {
+                    const tradeR = rMultiple > 0 ? trade.totalPnL / rMultiple : 0;
+                    const dollarSign = trade.totalPnL >= 0 ? '+' : '';
+                    const rSign = tradeR >= 0 ? '+' : '';
+                    const dollarColor = trade.totalPnL >= 0 ? 'positive' : 'negative';
+                    const rColor = tradeR >= 0 ? 'positive' : 'negative';
+                    
+                    dollarResults.push(`<span class="${dollarColor}">${dollarSign}$${trade.totalPnL.toFixed(0)}</span>`);
+                    rResults.push(`<span class="${rColor}">${rSign}${tradeR.toFixed(1)}R</span>`);
+                });
+                
+                summaryHTML += `
+                    <tr>
+                        <td class="ticker-name">${symbol}</td>
+                        <td>${dollarResults.join(', ')}</td>
+                        <td>${rResults.join(', ')}</td>
+                    </tr>
+                `;
+            });
+            
+            summaryHTML += '</table>';
+            tickerSummaryDiv.innerHTML = summaryHTML;
+        }
+    </script>
+</body>
+</html>
