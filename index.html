@@ -166,8 +166,10 @@
         }
         
         .ticker-table {
-            width: 100%;
+            width: auto;
+            max-width: 800px;
             border-collapse: collapse;
+            margin: 0 auto;
         }
         
         .ticker-table td {
@@ -175,6 +177,7 @@
             border-bottom: 1px solid #eee;
             font-size: 14px;
             vertical-align: top;
+            text-align: center;
         }
         
         .ticker-table tr:last-child td {
@@ -184,6 +187,54 @@
         .ticker-name {
             font-weight: bold;
             color: #333;
+        }
+        
+        .toggle-section {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .toggle-container {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 25px;
+            background-color: #ccc;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .toggle-switch.active {
+            background-color: #007bff;
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 21px;
+            height: 21px;
+            background-color: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+        
+        .toggle-switch.active .toggle-slider {
+            transform: translateX(25px);
+        }
+        
+        .dollar-content {
+            display: none;
+        }
+        
+        .ticker-table .dollar-content {
+            padding: 8px 15px;
         }
     </style>
 </head>
@@ -210,8 +261,18 @@
         </div>
         
         <div id="results" class="results">
-            <h3>Trading Statistics (Dollar)</h3>
-            <div class="stats-grid">
+            <div class="toggle-section">
+                <div class="toggle-container">
+                    <span>Show Dollar Amounts</span>
+                    <div class="toggle-switch" id="dollarToggle" onclick="toggleDollarDisplay()">
+                        <div class="toggle-slider"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="dollarStats" class="dollar-content">
+                <h3>Trading Statistics (Dollar)</h3>
+                <div class="stats-grid">
                 <div class="stat-card large">
                     <div class="stat-label">Total PnL</div>
                     <div class="stat-value big-number" id="totalPnL">-</div>
@@ -239,6 +300,7 @@
                 <div class="stat-card">
                     <div class="stat-label">Average RR</div>
                     <div class="stat-value" id="avgRR">-</div>
+                </div>
                 </div>
             </div>
             
@@ -524,7 +586,7 @@
                 summaryHTML += `
                     <tr>
                         <td class="ticker-name">${symbol}</td>
-                        <td>${dollarResults.join(', ')}</td>
+                        <td class="dollar-content">${dollarResults.join(', ')}</td>
                         <td>${rResults.join(', ')}</td>
                     </tr>
                 `;
@@ -532,6 +594,27 @@
             
             summaryHTML += '</table>';
             tickerSummaryDiv.innerHTML = summaryHTML;
+        }
+        
+        function toggleDollarDisplay() {
+            const toggle = document.getElementById('dollarToggle');
+            const dollarElements = document.querySelectorAll('.dollar-content');
+            
+            toggle.classList.toggle('active');
+            
+            dollarElements.forEach(element => {
+                if (toggle.classList.contains('active')) {
+                    if (element.tagName === 'DIV') {
+                        element.style.display = 'block';
+                    } else if (element.tagName === 'TD') {
+                        element.style.display = 'table-cell';
+                    } else {
+                        element.style.display = 'inline';
+                    }
+                } else {
+                    element.style.display = 'none';
+                }
+            });
         }
     </script>
 </body>
