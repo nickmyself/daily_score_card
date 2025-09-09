@@ -236,6 +236,143 @@
         .ticker-table .dollar-content {
             padding: 8px 15px;
         }
+        
+        .split-btn {
+            background-color: #6c757d;
+            color: white;
+            padding: 4px 8px;
+            border: none;
+            border-radius: 3px;
+            font-size: 11px;
+            cursor: pointer;
+            margin-left: 5px;
+        }
+        
+        .split-btn:hover {
+            background-color: #545b62;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 5px;
+            width: 80%;
+            max-width: 600px;
+            position: relative;
+        }
+        
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            position: absolute;
+            right: 15px;
+            top: 15px;
+        }
+        
+        .close:hover {
+            color: #000;
+        }
+        
+        .split-form {
+            margin-top: 20px;
+        }
+        
+        .split-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            gap: 10px;
+        }
+        
+        .split-input {
+            padding: 5px 10px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            width: 100px;
+        }
+        
+        .split-remove {
+            background-color: #dc3545;
+            color: white;
+            padding: 5px 8px;
+            border: none;
+            border-radius: 3px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        
+        .split-add {
+            background-color: #28a745;
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 3px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        
+        .split-confirm {
+            background-color: #007bff;
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 3px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        
+        .split-form h4 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .remaining-pnl {
+            font-weight: bold;
+            margin: 15px 0;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 3px;
+        }
+        
+        .trade-item {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            background-color: #f9f9f9;
+            transition: background-color 0.2s;
+        }
+        
+        .trade-item:hover {
+            background-color: #e9ecef;
+        }
+        
+        .trade-item-header {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .trade-item-details {
+            font-size: 12px;
+            color: #666;
+        }
     </style>
 </head>
 <body>
@@ -257,6 +394,7 @@
                 <input type="number" id="rMultiple" class="file-input" placeholder="Enter R value (e.g. 100)" step="0.01" />
             </div>
             <button class="analyze-btn" onclick="analyzeData()">Analyze Trading Data</button>
+            <button class="analyze-btn" id="splitTradeBtn" onclick="openSplitTradeSelection()" style="display: none; margin-left: 10px; background-color: #6c757d;">Split Trade</button>
             <div id="error-message"></div>
         </div>
         
@@ -340,9 +478,51 @@
             <div id="tickerSummary" class="ticker-summary"></div>
         </div>
     </div>
+    
+    <!-- Split Trade Modal -->
+    <div id="splitModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>Split Trade</h3>
+            
+            <!-- Trade Selection Step -->
+            <div id="tradeSelection">
+                <h4>Select a trade to split:</h4>
+                <div id="tradeList" style="max-height: 300px; overflow-y: auto; margin-bottom: 20px;"></div>
+            </div>
+            
+            <!-- Split Configuration Step -->
+            <div id="splitConfiguration" style="display: none;">
+                <div id="splitTradeInfo"></div>
+                <div class="split-form">
+                    <h4>Split into parts:</h4>
+                    <div id="splitInputs">
+                        <div class="split-row">
+                            <span>Part 1:</span>
+                            <input type="number" class="split-input" placeholder="P&L" step="0.01">
+                            <button class="split-remove" onclick="removeSplitRow(this)">Remove</button>
+                        </div>
+                        <div class="split-row">
+                            <span>Part 2:</span>
+                            <input type="number" class="split-input" placeholder="P&L" step="0.01">
+                            <button class="split-remove" onclick="removeSplitRow(this)">Remove</button>
+                        </div>
+                    </div>
+                    <div class="remaining-pnl" id="remainingPnl">Remaining P&L: $0.00</div>
+                    <button class="split-add" onclick="addSplitRow()">Add Part</button>
+                    <button class="split-confirm" onclick="confirmSplit()">Confirm Split</button>
+                    <button class="analyze-btn" onclick="deleteSelectedTrade()" style="background-color: #dc3545; margin-right: 10px;">Delete Trade</button>
+                    <button class="analyze-btn" onclick="backToTradeSelection()" style="background-color: #6c757d; margin-right: 10px;">Back</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script>
         let tradingData = [];
+        let completedTradesGlobal = [];
+        let currentSplitTrade = null;
+        let currentSplitIndex = null;
 
         function parseCSV(csvText) {
             const lines = csvText.trim().split('\n');
@@ -453,6 +633,8 @@
                         position += qty; // Buy increases position (or covers short)
                     } else if (side === 'SS') {
                         position -= qty; // Short sell decreases position (goes negative)
+                    } else if (side === 'S') {
+                        position -= qty; // Sell decreases position (closes long or covers short)
                     }
                     
                     console.log(`${trade.Time} ${side} ${qty} - Position: ${position}, P/L: ${pnl}, ECN: ${ecnFee}, Net: ${netPnL}, Total P/L: ${currentPnL}`);
@@ -497,6 +679,9 @@
             // Filter out trades with zero total P/L
             const completedTrades = aggregatedTrades.filter(trade => trade.totalPnL !== 0);
             console.log('Completed trades (non-zero P/L):', completedTrades.length);
+            
+            // Store globally for split functionality
+            completedTradesGlobal = completedTrades.slice();
             
             const winners = completedTrades.filter(trade => trade.totalPnL > 0);
             const losers = completedTrades.filter(trade => trade.totalPnL < 0);
@@ -549,6 +734,9 @@
             
             // Generate ticker summaries
             generateTickerSummaries(completedTrades);
+            
+            // Show split button
+            document.getElementById('splitTradeBtn').style.display = 'inline-block';
         }
         
         function generateTickerSummaries(completedTrades) {
@@ -557,11 +745,11 @@
             
             // Group trades by symbol
             const tradesBySymbol = {};
-            completedTrades.forEach(trade => {
+            completedTrades.forEach((trade, index) => {
                 if (!tradesBySymbol[trade.symbol]) {
                     tradesBySymbol[trade.symbol] = [];
                 }
-                tradesBySymbol[trade.symbol].push(trade);
+                tradesBySymbol[trade.symbol].push({...trade, originalIndex: index});
             });
             
             let summaryHTML = '<table class="ticker-table">';
@@ -615,6 +803,289 @@
                     element.style.display = 'none';
                 }
             });
+        }
+        
+        function openSplitTradeSelection() {
+            const modal = document.getElementById('splitModal');
+            const tradeList = document.getElementById('tradeList');
+            
+            // Show trade selection step
+            document.getElementById('tradeSelection').style.display = 'block';
+            document.getElementById('splitConfiguration').style.display = 'none';
+            
+            // Populate trade list
+            let tradeListHTML = '';
+            completedTradesGlobal.forEach((trade, index) => {
+                const pnlColor = trade.totalPnL >= 0 ? 'positive' : 'negative';
+                const pnlSign = trade.totalPnL >= 0 ? '+' : '';
+                
+                tradeListHTML += `
+                    <div class="trade-item" onclick="selectTradeForSplit(${index})">
+                        <div class="trade-item-header">
+                            ${trade.symbol} - <span class="${pnlColor}">${pnlSign}$${trade.totalPnL.toFixed(2)}</span>
+                        </div>
+                        <div class="trade-item-details">
+                            ${trade.startTime} to ${trade.endTime} | ${trade.tradeCount} executions
+                        </div>
+                    </div>
+                `;
+            });
+            
+            tradeList.innerHTML = tradeListHTML;
+            modal.style.display = 'block';
+        }
+        
+        function selectTradeForSplit(tradeIndex) {
+            currentSplitTrade = completedTradesGlobal[tradeIndex];
+            currentSplitIndex = tradeIndex;
+            
+            // Hide trade selection and show split configuration
+            document.getElementById('tradeSelection').style.display = 'none';
+            document.getElementById('splitConfiguration').style.display = 'block';
+            
+            const splitTradeInfo = document.getElementById('splitTradeInfo');
+            splitTradeInfo.innerHTML = `
+                <p><strong>Symbol:</strong> ${currentSplitTrade.symbol}</p>
+                <p><strong>Original P&L:</strong> $${currentSplitTrade.totalPnL.toFixed(2)}</p>
+                <p><strong>Trade Count:</strong> ${currentSplitTrade.tradeCount}</p>
+                <p><strong>Date Range:</strong> ${currentSplitTrade.startTime} to ${currentSplitTrade.endTime}</p>
+            `;
+            
+            // Reset split inputs
+            resetSplitInputs();
+            updateRemainingPnL();
+        }
+        
+        function backToTradeSelection() {
+            document.getElementById('tradeSelection').style.display = 'block';
+            document.getElementById('splitConfiguration').style.display = 'none';
+            currentSplitTrade = null;
+            currentSplitIndex = null;
+        }
+        
+        function resetSplitInputs() {
+            const splitInputsDiv = document.getElementById('splitInputs');
+            splitInputsDiv.innerHTML = `
+                <div class="split-row">
+                    <span>Part 1:</span>
+                    <input type="number" class="split-input" placeholder="P&L" step="0.01" oninput="handleSplitInput(this)">
+                    <button class="split-remove" onclick="removeSplitRow(this)">Remove</button>
+                </div>
+                <div class="split-row">
+                    <span>Part 2:</span>
+                    <input type="number" class="split-input" placeholder="P&L" step="0.01" oninput="handleSplitInput(this)">
+                    <button class="split-remove" onclick="removeSplitRow(this)">Remove</button>
+                </div>
+            `;
+        }
+        
+        function addSplitRow() {
+            const splitInputsDiv = document.getElementById('splitInputs');
+            const existingRows = splitInputsDiv.querySelectorAll('.split-row').length;
+            const newRowHTML = `
+                <div class="split-row">
+                    <span>Part ${existingRows + 1}:</span>
+                    <input type="number" class="split-input" placeholder="P&L" step="0.01" oninput="handleSplitInput(this)">
+                    <button class="split-remove" onclick="removeSplitRow(this)">Remove</button>
+                </div>
+            `;
+            splitInputsDiv.insertAdjacentHTML('beforeend', newRowHTML);
+            updateRemainingPnL();
+        }
+        
+        function removeSplitRow(button) {
+            const splitInputsDiv = document.getElementById('splitInputs');
+            const rows = splitInputsDiv.querySelectorAll('.split-row');
+            if (rows.length > 2) {
+                button.parentElement.remove();
+                // Update part numbers
+                const remainingRows = splitInputsDiv.querySelectorAll('.split-row');
+                remainingRows.forEach((row, index) => {
+                    row.querySelector('span').textContent = `Part ${index + 1}:`;
+                });
+                updateRemainingPnL();
+            }
+        }
+        
+        function handleSplitInput(changedInput) {
+            if (!currentSplitTrade) return;
+            
+            const inputs = document.querySelectorAll('#splitInputs .split-input');
+            const totalInputs = inputs.length;
+            
+            // If there are exactly 2 inputs, auto-calculate the other one
+            if (totalInputs === 2) {
+                const otherInput = Array.from(inputs).find(input => input !== changedInput);
+                const changedValue = parseFloat(changedInput.value);
+                
+                if (!isNaN(changedValue)) {
+                    const otherValue = currentSplitTrade.totalPnL - changedValue;
+                    otherInput.value = otherValue.toFixed(2);
+                }
+            }
+            
+            updateRemainingPnL();
+        }
+        
+        function updateRemainingPnL() {
+            if (!currentSplitTrade) return;
+            
+            const inputs = document.querySelectorAll('#splitInputs .split-input');
+            let totalSplit = 0;
+            
+            inputs.forEach(input => {
+                const value = parseFloat(input.value) || 0;
+                totalSplit += value;
+            });
+            
+            const remaining = currentSplitTrade.totalPnL - totalSplit;
+            const remainingPnlDiv = document.getElementById('remainingPnl');
+            remainingPnlDiv.innerHTML = `Remaining P&L: $${remaining.toFixed(2)}`;
+            
+            if (Math.abs(remaining) < 0.01) {
+                remainingPnlDiv.style.color = '#28a745';
+            } else {
+                remainingPnlDiv.style.color = '#dc3545';
+            }
+        }
+        
+        function confirmSplit() {
+            if (!currentSplitTrade) return;
+            
+            const inputs = document.querySelectorAll('#splitInputs .split-input');
+            const splitPnLs = [];
+            let totalSplit = 0;
+            
+            inputs.forEach(input => {
+                const value = parseFloat(input.value);
+                if (!isNaN(value) && value !== 0) {
+                    splitPnLs.push(value);
+                    totalSplit += value;
+                }
+            });
+            
+            if (splitPnLs.length < 2) {
+                alert('Please enter at least 2 split parts with valid P&L values.');
+                return;
+            }
+            
+            if (Math.abs(totalSplit - currentSplitTrade.totalPnL) > 0.01) {
+                alert(`Split P&L total ($${totalSplit.toFixed(2)}) does not match original P&L ($${currentSplitTrade.totalPnL.toFixed(2)})`);
+                return;
+            }
+            
+            // Remove original trade and insert split trades at the same position
+            completedTradesGlobal.splice(currentSplitIndex, 1);
+            
+            // Create split trades
+            const splitTrades = splitPnLs.map((pnl, index) => ({
+                symbol: currentSplitTrade.symbol,
+                totalPnL: pnl,
+                tradeCount: 1,
+                trades: currentSplitTrade.trades.slice(),
+                startTime: currentSplitTrade.startTime,
+                endTime: currentSplitTrade.endTime,
+                isSplit: true,
+                originalTradeIndex: currentSplitIndex,
+                splitIndex: index + 1
+            }));
+            
+            // Insert split trades at the original position
+            completedTradesGlobal.splice(currentSplitIndex, 0, ...splitTrades);
+            
+            // Recalculate statistics with split data
+            recalculateStatisticsWithSplitData();
+            
+            // Close modal
+            document.getElementById('splitModal').style.display = 'none';
+        }
+        
+        function recalculateStatisticsWithSplitData() {
+            const completedTrades = completedTradesGlobal;
+            
+            const winners = completedTrades.filter(trade => trade.totalPnL > 0);
+            const losers = completedTrades.filter(trade => trade.totalPnL < 0);
+            
+            const winCount = winners.length;
+            const lossCount = losers.length;
+            const totalTrades = winCount + lossCount;
+            
+            const totalWins = winners.reduce((sum, trade) => sum + trade.totalPnL, 0);
+            const totalLosses = losers.reduce((sum, trade) => sum + trade.totalPnL, 0);
+            
+            const totalPnL = totalWins + totalLosses;
+            const avgWin = winCount > 0 ? totalWins / winCount : 0;
+            const avgLoss = lossCount > 0 ? totalLosses / lossCount : 0;
+            const winRate = totalTrades > 0 ? (winCount / totalTrades) * 100 : 0;
+            const avgRR = (winCount > 0 && lossCount > 0) ? Math.abs(avgWin / avgLoss) : 0;
+            
+            // Display dollar statistics
+            document.getElementById('winners').textContent = winCount;
+            document.getElementById('losers').textContent = lossCount;
+            document.getElementById('avgWin').textContent = '$' + avgWin.toFixed(2);
+            document.getElementById('avgLoss').textContent = '$' + avgLoss.toFixed(2);
+            document.getElementById('winRate').textContent = winRate.toFixed(1) + '%';
+            document.getElementById('avgRR').textContent = avgRR.toFixed(2);
+            document.getElementById('totalPnL').textContent = '$' + totalPnL.toFixed(2);
+            
+            // Calculate and display R multiple statistics
+            const rMultiple = parseFloat(document.getElementById('rMultiple').value) || 1;
+            
+            const totalPnLR = rMultiple > 0 ? totalPnL / rMultiple : 0;
+            const avgWinR = rMultiple > 0 ? avgWin / rMultiple : 0;
+            const avgLossR = rMultiple > 0 ? avgLoss / rMultiple : 0;
+            const avgRRR = (winCount > 0 && lossCount > 0) ? Math.abs(avgWinR / avgLossR) : 0;
+            
+            document.getElementById('winnersR').textContent = winCount;
+            document.getElementById('losersR').textContent = lossCount;
+            document.getElementById('avgWinR').textContent = avgWinR.toFixed(2) + 'R';
+            document.getElementById('avgLossR').textContent = avgLossR.toFixed(2) + 'R';
+            document.getElementById('winRateR').textContent = winRate.toFixed(1) + '%';
+            document.getElementById('avgRRR').textContent = avgRRR.toFixed(2);
+            document.getElementById('totalPnLR').textContent = totalPnLR.toFixed(2) + 'R';
+            
+            // Update colors based on values
+            document.getElementById('winRate').className = 'stat-value ' + (winRate >= 50 ? 'positive' : 'negative');
+            document.getElementById('avgRR').className = 'stat-value ' + (avgRR >= 1 ? 'positive' : 'negative');
+            document.getElementById('totalPnL').className = 'stat-value ' + (totalPnL >= 0 ? 'positive' : 'negative');
+            document.getElementById('winRateR').className = 'stat-value ' + (winRate >= 50 ? 'positive' : 'negative');
+            document.getElementById('avgRRR').className = 'stat-value ' + (avgRRR >= 1 ? 'positive' : 'negative');
+            document.getElementById('totalPnLR').className = 'stat-value ' + (totalPnLR >= 0 ? 'positive' : 'negative');
+            
+            // Generate updated ticker summaries
+            generateTickerSummaries(completedTrades);
+        }
+        
+        function deleteSelectedTrade() {
+            if (!currentSplitTrade || currentSplitIndex === null) return;
+            
+            if (confirm(`Are you sure you want to delete the trade for ${currentSplitTrade.symbol} with P&L of $${currentSplitTrade.totalPnL.toFixed(2)}?`)) {
+                // Remove the trade from the global array
+                completedTradesGlobal.splice(currentSplitIndex, 1);
+                
+                // Recalculate statistics without this trade
+                recalculateStatisticsWithSplitData();
+                
+                // Close modal and reset state
+                document.getElementById('splitModal').style.display = 'none';
+                document.getElementById('tradeSelection').style.display = 'block';
+                document.getElementById('splitConfiguration').style.display = 'none';
+                currentSplitTrade = null;
+                currentSplitIndex = null;
+            }
+        }
+        
+        // Close modal when clicking outside or on close button
+        window.onclick = function(event) {
+            const modal = document.getElementById('splitModal');
+            if (event.target == modal || event.target.classList.contains('close')) {
+                modal.style.display = 'none';
+                // Reset modal state
+                document.getElementById('tradeSelection').style.display = 'block';
+                document.getElementById('splitConfiguration').style.display = 'none';
+                currentSplitTrade = null;
+                currentSplitIndex = null;
+            }
         }
     </script>
 </body>
