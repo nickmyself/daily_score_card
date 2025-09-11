@@ -380,7 +380,7 @@
         <h1>Daily Trading Score Card</h1>
         
         <div class="upload-section">
-            <h3>Upload Trading CSV Files</h3>
+            <h3>Step 1: Select your DAS Trader execution files</h3>
             <div class="file-input-group">
                 <label for="csvFile1">Account 1 CSV File:</label>
                 <input type="file" id="csvFile1" class="file-input" accept=".csv" />
@@ -389,9 +389,11 @@
                 <label for="csvFile2">Account 2 CSV File:</label>
                 <input type="file" id="csvFile2" class="file-input" accept=".csv" />
             </div>
+            
+            <h3>Step 2: Set your today's R (default R = $1)</h3>
             <div class="file-input-group">
                 <label for="rMultiple">R Multiple (Risk per trade):</label>
-                <input type="number" id="rMultiple" class="file-input" placeholder="Enter R value (e.g. 100)" step="0.01" />
+                <input type="number" id="rMultiple" class="file-input" placeholder="Enter R value (default: $1)" step="0.01" value="1" />
             </div>
             <button class="analyze-btn" onclick="analyzeData()">Analyze Trading Data</button>
             <button class="analyze-btn" id="splitTradeBtn" onclick="openSplitTradeSelection()" style="display: none; margin-left: 10px; background-color: #6c757d;">Split Trade</button>
