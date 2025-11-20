@@ -194,6 +194,13 @@
             margin: 20px 0;
         }
         
+        .toggle-stack {
+            display: inline-flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: center;
+        }
+        
         .toggle-container {
             display: inline-flex;
             align-items: center;
@@ -231,6 +238,22 @@
         
         .dollar-content {
             display: none;
+        }
+        
+        .mode-label {
+            font-size: 12px;
+            font-weight: bold;
+            padding: 4px 10px;
+            border-radius: 12px;
+            border: 1px solid #d0d7e2;
+            background-color: #f1f5fb;
+            color: #1b4f8f;
+        }
+        
+        .mode-label.gross {
+            background-color: #fff7e6;
+            color: #8a6200;
+            border-color: #f2e5c3;
         }
         
         .ticker-table .dollar-content {
@@ -402,16 +425,25 @@
         
         <div id="results" class="results">
             <div class="toggle-section">
-                <div class="toggle-container">
-                    <span>Show Dollar Amounts</span>
-                    <div class="toggle-switch" id="dollarToggle" onclick="toggleDollarDisplay()">
-                        <div class="toggle-slider"></div>
+                <div class="toggle-stack">
+                    <div class="toggle-container">
+                        <span>Show Dollar Amounts</span>
+                        <div class="toggle-switch" id="dollarToggle" onclick="toggleDollarDisplay()">
+                            <div class="toggle-slider"></div>
+                        </div>
+                    </div>
+                    <div class="toggle-container">
+                        <span>PNL Mode</span>
+                        <div class="toggle-switch active" id="pnlModeToggle" onclick="togglePnlMode()">
+                            <div class="toggle-slider"></div>
+                        </div>
+                        <span id="pnlModeLabel" class="mode-label">Net</span>
                     </div>
                 </div>
             </div>
             
             <div id="dollarStats" class="dollar-content">
-                <h3>Trading Statistics (Dollar)</h3>
+                <h3>Trading Statistics (Dollar) <span id="pnlModeBadge" class="mode-label">Net</span></h3>
                 <div class="stats-grid">
                 <div class="stat-card large">
                     <div class="stat-label">Total PnL</div>
@@ -525,6 +557,7 @@
         let completedTradesGlobal = [];
         let currentSplitTrade = null;
         let currentSplitIndex = null;
+        let pnlMode = 'net';
 
         function parseCSV(csvText) {
             const lines = csvText.trim().split('\n');
@@ -551,6 +584,49 @@
                 reader.onerror = (e) => reject(e);
                 reader.readAsText(file);
             });
+        }
+        
+        function refreshPnlModeUI() {
+            const toggle = document.getElementById('pnlModeToggle');
+            const label = document.getElementById('pnlModeLabel');
+            const badge = document.getElementById('pnlModeBadge');
+
+            if (toggle) {
+                toggle.classList.toggle('active', pnlMode === 'net');
+            }
+            if (label) {
+                label.textContent = pnlMode === 'net' ? 'Net' : 'Gross';
+                label.className = 'mode-label' + (pnlMode === 'gross' ? ' gross' : '');
+            }
+            if (badge) {
+                badge.textContent = pnlMode === 'net' ? 'Net' : 'Gross';
+                badge.className = 'mode-label' + (pnlMode === 'gross' ? ' gross' : '');
+            }
+        }
+
+        function togglePnlMode() {
+            pnlMode = pnlMode === 'net' ? 'gross' : 'net';
+            refreshPnlModeUI();
+            
+            // Only recalc if data was loaded
+            if (tradingData.length > 0) {
+                calculateStatistics();
+            }
+        }
+
+        function calculateTradePnL(pnlValue, ecnFeeValue) {
+            const pnlAmount = parseFloat(pnlValue || 0);
+            const ecnFeeAmount = parseFloat(ecnFeeValue || 0);
+
+            if (Number.isNaN(pnlAmount)) {
+                return 0;
+            }
+
+            if (pnlMode === 'net') {
+                return pnlAmount - (Number.isNaN(ecnFeeAmount) ? 0 : ecnFeeAmount);
+            }
+
+            return pnlAmount;
         }
 
         async function analyzeData() {
@@ -579,10 +655,11 @@
                     const data2 = parseCSV(csvText2);
                     tradingData = tradingData.concat(data2);
                 }
-                
+
+                refreshPnlModeUI();
                 calculateStatistics();
                 document.getElementById('results').style.display = 'block';
-                
+
             } catch (error) {
                 errorDiv.innerHTML = '<div class="error">Error reading files: ' + error.message + '</div>';
             }
@@ -618,18 +695,18 @@
                 let currentPnL = 0;
                 
                 console.log(`\nProcessing ${symbol}:`);
-                
+
                 trades.forEach(trade => {
                     const side = trade.Side;
                     const qty = parseInt(trade.Qty);
                     const pnl = parseFloat(trade['P / L'] || 0);
                     const ecnFee = parseFloat(trade.ECNFee || 0);
-                    const netPnL = pnl - ecnFee;
-                    
+                    const calculatedPnL = calculateTradePnL(trade['P / L'], trade.ECNFee);
+
                     // Add to current trade group
                     currentTradeGroup.push(trade);
-                    currentPnL += netPnL;
-                    
+                    currentPnL += calculatedPnL;
+
                     // Update position
                     if (side === 'B') {
                         position += qty; // Buy increases position (or covers short)
@@ -638,8 +715,9 @@
                     } else if (side === 'S') {
                         position -= qty; // Sell decreases position (closes long or covers short)
                     }
-                    
-                    console.log(`${trade.Time} ${side} ${qty} - Position: ${position}, P/L: ${pnl}, ECN: ${ecnFee}, Net: ${netPnL}, Total P/L: ${currentPnL}`);
+
+                    const modeLabel = pnlMode === 'net' ? 'Net' : 'Gross';
+                    console.log(`${trade.Time} ${side} ${qty} - Position: ${position}, P/L: ${pnl}, ECN: ${ecnFee}, ${modeLabel}: ${calculatedPnL}, Total P/L: ${currentPnL}`);
                     
                     // If position is back to 0, we have a completed trade
                     if (position === 0 && currentTradeGroup.length > 0) {
@@ -673,7 +751,8 @@
 
         function calculateStatistics() {
             console.log('Trading data:', tradingData);
-            
+            refreshPnlModeUI();
+
             // First aggregate trades by symbol
             const aggregatedTrades = aggregateTrades(tradingData);
             console.log('Aggregated trades:', aggregatedTrades);
@@ -1004,7 +1083,8 @@
         
         function recalculateStatisticsWithSplitData() {
             const completedTrades = completedTradesGlobal;
-            
+            refreshPnlModeUI();
+
             const winners = completedTrades.filter(trade => trade.totalPnL > 0);
             const losers = completedTrades.filter(trade => trade.totalPnL < 0);
             
